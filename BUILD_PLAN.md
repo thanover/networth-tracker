@@ -36,7 +36,7 @@
 - [x] Time range toggle (1Y / 5Y / 10Y / 40Y)
 - [x] Three lines: assets, debts, net worth
 
-## Phase 6: Docker & CI/CD
-- [ ] Finalize Dockerfiles (multi-stage builds, nginx config for client)
-- [ ] Docker Compose with env vars and volumes
-- [ ] GitHub Actions workflow to build and push to ghcr.io
+## Phase 6: Docker & CI/CD ✅
+- [x] Finalize Dockerfiles (multi-stage builds, nginx config for client)
+- [x] Docker Compose with env vars and volumes
+- [x] GitHub Actions workflow to build and push to ghcr.io
