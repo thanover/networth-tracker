@@ -100,13 +100,19 @@ export default function NetWorthChart({ accounts, birthday }) {
     }
   }
 
+  // ~5 evenly spaced ticks regardless of range
+  const tickInterval = months <= 12 ? 3 : months <= 60 ? 12 : months <= 120 ? 24 : 96;
+  const ticks = Array.from({ length: Math.floor(months / tickInterval) }, (_, i) => (i + 1) * tickInterval);
+
   // Derive tick props based on birthday
   const xAxisProps = birthday
     ? {
+        ticks,
         tick: (props) => <AgeTick {...props} birthday={birthday} />,
         height: 40,
       }
     : {
+        ticks,
         tickFormatter: m => fmtMonth(m, months),
         tick: { fill: '#8b949e', fontSize: 11 },
       };
