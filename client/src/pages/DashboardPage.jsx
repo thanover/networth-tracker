@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import AccountModal from '@/components/AccountModal';
+import NetWorthChart from '@/components/NetWorthChart';
 
 const TYPE_LABELS = {
   investment:  'Investment',
@@ -103,7 +104,7 @@ function Section({ title, accounts, total, colorClass, onEdit, onDelete, onAdd }
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
-  const { assets, debts, totalAssets, totalDebts, netWorth, loading, error, create, update, remove } = useAccounts();
+  const { accounts, assets, debts, totalAssets, totalDebts, netWorth, loading, error, create, update, remove } = useAccounts();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState(null);
@@ -164,6 +165,9 @@ export default function DashboardPage() {
         </div>
 
         {error && <p className="text-gh-red text-xs">{error}</p>}
+
+        {/* Projection chart */}
+        <NetWorthChart accounts={accounts} />
 
         {/* Assets */}
         <Section

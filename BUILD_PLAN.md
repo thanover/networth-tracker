@@ -30,11 +30,11 @@
 - [x] Delete account with confirmation
 - [x] Current net worth display
 
-## Phase 5: Projections & Chart
-- [ ] Projection math utility (all formulas from spec)
-- [ ] Net worth over time line chart with Recharts
-- [ ] Time range toggle (1Y / 5Y / 10Y / 40Y)
-- [ ] Three lines: assets, debts, net worth
+## Phase 5: Projections & Chart ✅
+- [x] Projection math utility (all formulas from spec)
+- [x] Net worth over time line chart with Recharts
+- [x] Time range toggle (1Y / 5Y / 10Y / 40Y)
+- [x] Three lines: assets, debts, net worth
 
 ## Phase 6: Docker & CI/CD
 - [ ] Finalize Dockerfiles (multi-stage builds, nginx config for client)
