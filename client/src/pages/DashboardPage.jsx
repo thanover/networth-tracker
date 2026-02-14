@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import AccountModal from '@/components/AccountModal';
 import NetWorthChart from '@/components/NetWorthChart';
+import BirthdayBanner from '@/components/BirthdayBanner';
 
 const TYPE_LABELS = {
   investment:  'Investment',
@@ -146,6 +147,9 @@ export default function DashboardPage() {
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
+        {/* Birthday banner — shown until DOB is set */}
+        {!user.birthday && <BirthdayBanner />}
+
         {/* Net worth summary */}
         <div className="rounded-lg border border-gh-border bg-gh-surface px-6 py-5">
           <p className="text-xs uppercase tracking-widest text-gh-muted mb-2">Net Worth</p>
@@ -167,7 +171,7 @@ export default function DashboardPage() {
         {error && <p className="text-gh-red text-xs">{error}</p>}
 
         {/* Projection chart */}
-        <NetWorthChart accounts={accounts} />
+        <NetWorthChart accounts={accounts} birthday={user.birthday} />
 
         {/* Assets */}
         <Section
