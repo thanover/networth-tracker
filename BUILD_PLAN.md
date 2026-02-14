@@ -8,13 +8,13 @@
 - [x] Docker Compose + Dockerfiles for all three services
 - [x] Verify everything starts up and connects
 
-## Phase 2: Backend API
-- [ ] MongoDB connection setup with Mongoose
-- [ ] User model + auth routes (register/login) with JWT + bcrypt
-- [ ] Auth middleware
-- [ ] Account model (with all asset/debt type fields)
-- [ ] Account CRUD routes
-- [ ] Test all endpoints work
+## Phase 2: Backend API ✅
+- [x] MongoDB connection setup with Mongoose
+- [x] User model + auth routes (register/login) with JWT + bcrypt
+- [x] Auth middleware
+- [x] Account model (with all asset/debt type fields)
+- [x] Account CRUD routes
+- [x] Test all endpoints work (Vitest + Supertest + mongodb-memory-server, 27 tests)
 
 ## Phase 3: Auth UI
 - [ ] API client module with JWT handling
