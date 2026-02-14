@@ -30,7 +30,7 @@ jobs:
 
       # Lowercase the repo name for GHCR (image names must be lowercase)
       - name: Set image prefix
-        run: echo "IMAGE_PREFIX=${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+        run: echo "IMAGE_PREFIX=$(echo '${{ env.REGISTRY }}/${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build and push client image
         uses: docker/build-push-action@v6
