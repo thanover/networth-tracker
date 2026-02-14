@@ -23,12 +23,12 @@
 - [x] Protected route wrapper
 - [x] Verify login/register flow end-to-end (clean production build)
 
-## Phase 4: Dashboard — Accounts
-- [ ] Dashboard page layout (top bar, sections)
-- [ ] Accounts list component (assets section + debts section with subtotals)
-- [ ] Add/Edit account modal with dynamic form fields per type
-- [ ] Delete account with confirmation
-- [ ] Current net worth display
+## Phase 4: Dashboard — Accounts ✅
+- [x] Dashboard page layout (top bar, sections)
+- [x] Accounts list component (assets section + debts section with subtotals)
+- [x] Add/Edit account modal with dynamic form fields per type
+- [x] Delete account with confirmation
+- [x] Current net worth display
 
 ## Phase 5: Projections & Chart
 - [ ] Projection math utility (all formulas from spec)
