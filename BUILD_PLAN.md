@@ -16,12 +16,12 @@
 - [x] Account CRUD routes
 - [x] Test all endpoints work (Vitest + Supertest + mongodb-memory-server, 27 tests)
 
-## Phase 3: Auth UI
-- [ ] API client module with JWT handling
-- [ ] Auth context/provider for React
-- [ ] Login/Register page
-- [ ] Protected route wrapper
-- [ ] Verify login/register flow end-to-end
+## Phase 3: Auth UI ✅
+- [x] API client module with JWT handling
+- [x] Auth context/provider for React
+- [x] Login/Register page
+- [x] Protected route wrapper
+- [x] Verify login/register flow end-to-end (clean production build)
 
 ## Phase 4: Dashboard — Accounts
 - [ ] Dashboard page layout (top bar, sections)
