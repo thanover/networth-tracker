@@ -1,0 +1,14 @@
+{
+  "name": "networth-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,green \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "test": "npm run test --prefix server",
+    "docker:dev": "docker compose up --build",
+    "docker:pull": "docker compose pull && docker compose up"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
