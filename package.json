@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n client,server -c cyan,green \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
-    "test": "npm run test --prefix server",
+    "dev": "concurrently -n client,server -c cyan,green \"pnpm --prefix client run dev\" \"pnpm --prefix server run dev\"",
+    "test": "pnpm --prefix server run test",
     "docker:dev": "docker compose up --build",
     "docker:pull": "docker compose pull && docker compose up"
   },

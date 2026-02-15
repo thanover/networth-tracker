@@ -16,6 +16,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["mongodb-memory-server"]
+  },
   "devDependencies": {
     "mongodb-memory-server": "^11.0.1",
     "supertest": "^7.2.2",
