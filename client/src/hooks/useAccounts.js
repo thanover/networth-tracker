@@ -44,5 +44,5 @@ export function useAccounts() {
   const totalDebts  = debts.reduce((sum, a) => sum + a.balance, 0);
   const netWorth    = totalAssets - totalDebts;
 
-  return { accounts, assets, debts, totalAssets, totalDebts, netWorth, loading, error, create, update, remove };
+  return { accounts, assets, debts, totalAssets, totalDebts, netWorth, loading, error, create, update, remove, reload: fetch };
 }

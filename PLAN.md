@@ -77,6 +77,6 @@ Users can bulk-add accounts by downloading a template CSV, filling it in, and up
 | 1 | Type-aware account modal | pending |
 | 2 | Balance checkpoints | pending |
 | 3 | Actual vs projected lookback | pending |
-| 4 | Configurable inflation | pending |
-| 5 | Data export / import | pending |
+| 4 | Configurable inflation | done |
+| 5 | Data export / import | done |
 | 6 | CSV account import | pending |
