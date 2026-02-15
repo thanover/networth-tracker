@@ -2,25 +2,25 @@
 
 ## Overview
 
-A self-hosted net worth tracking application where users can add financial accounts (assets and debts), view their current net worth, and project net worth over time based on provided parameters. Deployed via Docker Compose.
+A self-hosted net worth tracking application where users can add financial accounts (assets and debts), view their current net worth, and project net worth over time. The chart X-axis shows the user's age alongside the calendar year. Deployed via Docker Compose.
 
 ## Tech Stack
 
-- **Frontend:** React + Vite + Tailwind CSS + shadcn/ui + Recharts
+- **Frontend:** React + Vite + Tailwind CSS (v4) + Recharts
 - **Backend:** Express.js + Mongoose
 - **Database:** MongoDB
+- **Package manager:** pnpm
 - **Containerization:** Docker + Docker Compose
-- **CI/CD:** GitHub Actions (build + publish Docker images)
+- **CI/CD:** GitHub Actions (build + publish Docker images to GHCR)
 
 ---
 
 ## Authentication
 
-- Simple username/password auth
-- JWT-based sessions
+- Username/password auth
+- JWT-based sessions (7-day expiry)
 - Passwords hashed with bcrypt
 - Single-user or multi-user (each user sees only their own data)
-- No OAuth/social login for now
 
 ---
 
@@ -28,72 +28,76 @@ A self-hosted net worth tracking application where users can add financial accou
 
 ### User
 
-| Field        | Type   | Notes                |
-|--------------|--------|----------------------|
-| `_id`        | ObjectId | Auto-generated     |
-| `username`   | String | Unique, required     |
-| `password`   | String | Hashed, required     |
-| `createdAt`  | Date   | Auto-generated       |
+| Field           | Type     | Notes                              |
+|-----------------|----------|------------------------------------|
+| `_id`           | ObjectId | Auto-generated                     |
+| `username`      | String   | Unique, required                   |
+| `password`      | String   | Hashed with bcrypt, required       |
+| `birthday`      | Date     | Optional; used for age-aware chart |
+| `inflationRate` | Number   | Default 3.5%; used for real-value projection |
+| `createdAt`     | Date     | Auto-generated                     |
 
 ### Account
 
-| Field          | Type    | Notes                                      |
-|----------------|---------|---------------------------------------------|
-| `_id`          | ObjectId | Auto-generated                             |
-| `userId`       | ObjectId | Ref to User                                |
-| `name`         | String  | User-defined label (e.g. "Chase Savings")   |
-| `category`     | String  | `asset` or `debt`                           |
-| `type`         | String  | See types below                             |
-| `balance`      | Number  | Current balance (positive number)           |
-| `interestRate` | Number  | Annual % (e.g. 5.0 = 5%)                   |
-| `createdAt`    | Date   | Auto-generated                               |
+| Field          | Type     | Notes                                       |
+|----------------|----------|---------------------------------------------|
+| `_id`          | ObjectId | Auto-generated                              |
+| `userId`       | ObjectId | Ref to User                                 |
+| `name`         | String   | User-defined label, required                |
+| `category`     | String   | `asset` or `debt`, required                 |
+| `type`         | String   | See types below, required                   |
+| `balance`      | Number   | Current value/balance (≥ 0), required       |
+| `interestRate` | Number   | Annual % (shared optional field)            |
+| `expectedGrowthRate`  | Number | Annual % growth/depreciation         |
+| `monthlyContribution` | Number | Expected monthly deposits            |
+| `monthlyPayment`      | Number | Expected monthly payment             |
+| `remainingTerm`       | Number | Remaining months on loan             |
+| `createdAt`    | Date     | Auto-generated                              |
 
-#### Asset Types and Extra Fields
+#### Asset Types and Required Fields
 
-**`investment`** — Brokerage, 401k, IRA, index funds, crypto, etc.
-| Field                  | Type   | Notes                          |
-|------------------------|--------|--------------------------------|
-| `expectedGrowthRate`   | Number | Annual % growth estimate       |
-| `monthlyContribution`  | Number | Expected monthly contribution  |
+**`investment`** — Brokerage, 401k, IRA, index funds, crypto
+| Field                  | Required | Notes                         |
+|------------------------|----------|-------------------------------|
+| `expectedGrowthRate`   | Yes      | Annual % growth estimate      |
+| `monthlyContribution`  | No       | Expected monthly contribution |
 
 **`property`** — Real estate
-| Field                  | Type   | Notes                          |
-|------------------------|--------|--------------------------------|
-| `expectedGrowthRate`   | Number | Annual % appreciation          |
+| Field                  | Required | Notes                         |
+|------------------------|----------|-------------------------------|
+| `expectedGrowthRate`   | No       | Annual % appreciation         |
 
-**`vehicle`** — Cars, motorcycles, boats, etc. (depreciating)
-| Field                  | Type   | Notes                                          |
-|------------------------|--------|-------------------------------------------------|
-| `expectedGrowthRate`   | Number | Annual % (typically negative, e.g. -15)        |
+**`vehicle`** — Cars, motorcycles, boats (depreciating assets)
+| Field                  | Required | Notes                                    |
+|------------------------|----------|------------------------------------------|
+| `expectedGrowthRate`   | No       | Annual %; defaults to -15 (depreciation) |
 
 **`cash`** — Checking, savings, money market
-| Field                  | Type   | Notes                          |
-|------------------------|--------|--------------------------------|
-| `interestRate`         | Number | Annual APY                     |
-| `monthlyContribution`  | Number | Expected monthly deposits      |
+| Field                  | Required | Notes                          |
+|------------------------|----------|--------------------------------|
+| `interestRate`         | No       | Annual APY                     |
+| `monthlyContribution`  | No       | Expected monthly deposits      |
 
-#### Debt Types and Extra Fields
+#### Debt Types and Required Fields
 
 **`loan`** — Mortgage, student, auto, personal loans
-| Field                  | Type   | Notes                          |
-|------------------------|--------|--------------------------------|
-| `interestRate`         | Number | Annual %                       |
-| `monthlyPayment`       | Number | Monthly payment amount         |
-| `remainingTerm`        | Number | Remaining months               |
+| Field                  | Required | Notes                                                   |
+|------------------------|----------|---------------------------------------------------------|
+| `interestRate`         | Yes      | Annual %                                                |
+| `monthlyPayment`       | Yes      | Monthly payment amount                                  |
+| `remainingTerm`        | Yes      | Remaining months (required to project when debt ends)   |
 
 **`credit_card`** — Revolving credit
-| Field                  | Type   | Notes                          |
-|------------------------|--------|--------------------------------|
-| `interestRate`         | Number | Annual APR                     |
-| `monthlyPayment`       | Number | Expected monthly payment       |
-
-> **Note:** `remainingTerm` is used for amortizing loans so the projection knows when the debt reaches zero. Credit cards don't have a fixed term.
+| Field                  | Required | Notes                          |
+|------------------------|----------|--------------------------------|
+| `interestRate`         | Yes      | Annual APR                     |
+| `monthlyPayment`       | Yes      | Expected monthly payment       |
 
 ---
 
 ## Projection Math
 
-All projections are calculated **monthly** on the client side.
+All projections are calculated **monthly** on the client side (`client/src/utils/projection.js`).
 
 ### Assets
 
@@ -111,19 +115,19 @@ balance[m+1] = balance[m] * (1 + monthlyRate)
 
 ### Debts
 
-**Loan (amortizing — mortgage, student, auto, personal):**
+**Loan (amortizing):**
 ```
 monthlyRate = annualRate / 100 / 12
-interest = balance[m] * monthlyRate
-principal = monthlyPayment - interest
+interest     = balance[m] * monthlyRate
+principal    = monthlyPayment - interest
 balance[m+1] = max(0, balance[m] - principal)
 // Stops at 0 or when remainingTerm is reached
 ```
 
 **Credit Card:**
 ```
-monthlyRate = annualRate / 100 / 12
-interest = balance[m] * monthlyRate
+monthlyRate  = annualRate / 100 / 12
+interest     = balance[m] * monthlyRate
 balance[m+1] = max(0, balance[m] + interest - monthlyPayment)
 ```
 
@@ -133,27 +137,48 @@ balance[m+1] = max(0, balance[m] + interest - monthlyPayment)
 netWorth[m] = sum(assets[m]) - sum(debts[m])
 ```
 
+### Inflation Adjustment (Real value)
+
+When the "Inflation-adjusted" toggle is on, each projected value is deflated back to today's purchasing power:
+```
+realValue[m] = nominalValue[m] / (1 + inflationRate/100/12)^m
+```
+
 ---
 
 ## API Endpoints
 
-All endpoints except auth require a valid JWT in the `Authorization: Bearer <token>` header.
+All endpoints except auth require `Authorization: Bearer <token>`.
 
 ### Auth
 
-| Method | Path              | Description          |
-|--------|-------------------|----------------------|
-| POST   | `/api/auth/register` | Create new user   |
-| POST   | `/api/auth/login`    | Login, returns JWT |
+| Method | Path                  | Body                        | Response                      |
+|--------|-----------------------|-----------------------------|-------------------------------|
+| POST   | `/api/auth/register`  | `{ username, password }`    | `{ token, username }`         |
+| POST   | `/api/auth/login`     | `{ username, password }`    | `{ token, username }`         |
+
+### User Profile
+
+| Method | Path        | Body                                        | Response                            |
+|--------|-------------|---------------------------------------------|-------------------------------------|
+| GET    | `/api/user` | —                                           | `{ username, birthday, inflationRate }` |
+| PATCH  | `/api/user` | `{ birthday?, inflationRate? }`             | `{ username, birthday, inflationRate }` |
 
 ### Accounts
 
-| Method | Path                   | Description               |
-|--------|------------------------|---------------------------|
-| GET    | `/api/accounts`        | List all user accounts    |
-| POST   | `/api/accounts`        | Create a new account      |
-| PUT    | `/api/accounts/:id`    | Update an account         |
-| DELETE | `/api/accounts/:id`    | Delete an account         |
+| Method | Path                  | Description                  |
+|--------|-----------------------|------------------------------|
+| GET    | `/api/accounts`       | List all user accounts       |
+| POST   | `/api/accounts`       | Create a new account         |
+| PUT    | `/api/accounts/:id`   | Update an account            |
+| DELETE | `/api/accounts/:id`   | Delete an account            |
+
+### Export / Import
+
+| Method | Path          | Description                                                         |
+|--------|---------------|---------------------------------------------------------------------|
+| GET    | `/api/export` | Download all user data as a JSON file (`version: 1`)                |
+| POST   | `/api/export` | Restore from an export file; replaces all existing accounts. Returns `{ imported: { accounts: N }, failures: [...] }` for any rows that failed validation. |
 
 ---
 
@@ -161,29 +186,65 @@ All endpoints except auth require a valid JWT in the `Authorization: Bearer <tok
 
 ### 1. Login / Register
 
-- Simple form with username + password
+- Username + password form
 - Toggle between login and register
 
-### 2. Dashboard (main page)
+### 2. Dashboard
 
-- **Net Worth Summary** — Large display of current total net worth
-- **Net Worth Over Time Chart** — Line chart showing projected net worth
-  - Time range toggle: **1Y / 5Y / 10Y / 40Y**
-  - Shows total net worth line
-- **Accounts List** — Two sections: Assets and Debts
-  - Each account shows: name, type, current balance
-  - Total assets and total debts subtotals
-  - Add / Edit / Delete actions per account
+**Header bar**
+- App title
+- Export / Import buttons (JSON)
+- Sign out
 
-### 3. Add/Edit Account Modal
+**Birthday banner** (shown when no date of birth is set)
+- Inline date input to enter DOB; dismissed once saved
+- Required for age-aware chart labels
 
-- Form fields change dynamically based on category (asset/debt) and type selection
-- Fields:
-  - Name (text)
-  - Category (asset / debt)
-  - Type (dropdown, filtered by category)
-  - Balance (currency input)
-  - Type-specific fields (interest rate, growth rate, monthly payment, monthly contribution, remaining term)
+**Net Worth Summary card**
+- Large display of current total net worth (green if positive, red if negative)
+- Assets and debts subtotals
+
+**Net Worth Projection Chart**
+- Line chart of projected net worth over time (Recharts)
+- Time range toggle: 1Y / 5Y / 10Y / 40Y
+- X-axis shows `Age XX` / `YYYY` when DOB is set; falls back to year offsets otherwise
+- ~5 evenly spaced tick marks per range to avoid crowding
+- Tooltip shows age, year, and projected value on hover
+- **Chart footer:**
+  - Left: current age + "Change DOB" button (inline date input)
+  - Right: "Inflation-adjusted" checkbox; when checked, shows rate input with Save button
+
+**Assets / Debts sections**
+- Each account row shows:
+  - Name
+  - Type + key at-a-glance stats (e.g. `Investment · +7%/yr · +$500/mo`, `Loan · 4.6% APR · $1,800/mo · 23 yrs left`)
+  - Balance (green for assets, red for debts)
+  - Click row → opens Account Detail Modal
+- Section footer shows category total
+
+### 3. Account Detail Modal
+
+Opens when any account row is clicked. Three states:
+
+**View** — read-only display of all fields with formatted values
+- Balance (large, color-coded)
+- Type-specific fields (e.g. `+7%/yr`, `$1,800/mo`, `23 yrs (280 mo)`)
+- Footer: Delete button (left) + Edit button (right)
+
+**Edit** — full editable form (same fields as Add modal)
+- Footer: Cancel + Save changes
+
+**Delete confirm** — "Delete [name]? This cannot be undone."
+- Footer: Cancel + Delete (red)
+
+### 4. Add Account Modal
+
+Opens from the "+ Add" button in each section header.
+
+- Name, Category (asset/debt), Type dropdown
+- Balance (label adapts to type, e.g. "Outstanding Balance" for debts)
+- Type-specific fields (required fields enforced; optional fields labelled)
+- Vehicle type pre-fills growth rate with -15%
 
 ---
 
@@ -191,145 +252,67 @@ All endpoints except auth require a valid JWT in the `Authorization: Bearer <tok
 
 ### Theme
 
-GitHub Dark theme-inspired dashboard. Dark-only (no light mode toggle).
+GitHub Dark-inspired. Dark-only.
 
 ### Color Palette
 
-| Token       | Hex       | Usage                          |
-|-------------|-----------|--------------------------------|
-| `gh-bg`     | `#0d1117` | Page background                |
-| `gh-surface`| `#161b22` | Cards, panels                  |
-| `gh-raised` | `#21262d` | Elevated surfaces, hover states|
-| `gh-border` | `#30363d` | Borders, dividers              |
-| `gh-text`   | `#c9d1d9` | Primary text                   |
-| `gh-muted`  | `#8b949e` | Secondary/muted text           |
-| `gh-bright` | `#f0f6fc` | Headings, emphasis             |
-| `gh-blue`   | `#388bfd` | Links, primary actions         |
-| `gh-green`  | `#3fb950` | Positive values, assets        |
-| `gh-yellow` | `#d29922` | Warnings, neutral indicators   |
-| `gh-purple` | `#bc8cff` | Accents                        |
-| `gh-red`    | `#f85149`  | Negative values, debts, errors |
+| Token        | Hex       | Usage                           |
+|--------------|-----------|---------------------------------|
+| `gh-bg`      | `#0d1117` | Page background                 |
+| `gh-surface` | `#161b22` | Cards, panels                   |
+| `gh-raised`  | `#21262d` | Elevated surfaces, hover states |
+| `gh-border`  | `#30363d` | Borders, dividers               |
+| `gh-text`    | `#c9d1d9` | Primary text                    |
+| `gh-muted`   | `#8b949e` | Secondary/muted text            |
+| `gh-bright`  | `#f0f6fc` | Headings, emphasis              |
+| `gh-blue`    | `#388bfd` | Links, primary actions          |
+| `gh-green`   | `#3fb950` | Positive values, assets         |
+| `gh-yellow`  | `#d29922` | Warnings, banners               |
+| `gh-red`     | `#f85149` | Negative values, debts, errors  |
 
 ### Typography
 
 - **Font:** Monospace stack — `ui-monospace`, `Cascadia Code`, `Fira Code`, `monospace`
 - **Base size:** 13px
-- **Section headers:** 10-11px uppercase with letter-spacing
+- **Section headers:** 10–11px uppercase with letter-spacing
 
 ### Libraries
 
-- **Tailwind CSS** — Utility-first styling with custom theme extending GitHub's dark palette
-- **shadcn/ui** — Component primitives (cards, badges, buttons, modals, tabs, forms). Copied into the project, styled with Tailwind. CSS variables customized to match the GitHub palette.
-- **Recharts** — React-native charting library for the net worth projection line chart
-
-### Tailwind Config
-
-```js
-// tailwind.config.js
-theme: {
-  extend: {
-    colors: {
-      gh: {
-        bg: '#0d1117',
-        surface: '#161b22',
-        raised: '#21262d',
-        border: '#30363d',
-        text: '#c9d1d9',
-        muted: '#8b949e',
-        bright: '#f0f6fc',
-        blue: '#388bfd',
-        green: '#3fb950',
-        yellow: '#d29922',
-        purple: '#bc8cff',
-        red: '#f85149',
-      }
-    },
-    fontFamily: {
-      mono: ['ui-monospace', 'Cascadia Code', 'Fira Code', 'monospace'],
-    }
-  }
-}
-```
-
-### Component Style Notes
-
-- **Cards:** Rounded corners, `gh-surface` background, `gh-border` 1px border
-- **Badges/Pills:** Semi-transparent colored backgrounds (e.g. `bg-gh-green/10 text-gh-green`)
-- **Buttons:** `gh-raised` background, `gh-border` border, `gh-text` on hover
-- **Scrollbars:** Thin custom scrollbars (6px, `gh-border` thumb)
-- **Chart:** `gh-green` for assets line, `gh-red` for debts line, `gh-blue` for net worth line
-- **Net worth display:** Large monospace number, `gh-green` if positive, `gh-red` if negative
+- **Tailwind CSS v4** — Utility-first styling; colors defined as CSS custom properties in `index.css`
+- **Radix UI** — Accessible dialog primitives (`Dialog`)
+- **Recharts** — React charting library for the net worth projection chart
 
 ---
 
 ## Docker Setup
 
-### Services (docker-compose.yml)
+### Services
 
-1. **`client`** — Nginx serving the built React app
-2. **`server`** — Node.js Express API
-3. **`mongo`** — MongoDB instance with a named volume for persistence
+| Service  | Image / Build        | Port      | Notes                            |
+|----------|----------------------|-----------|----------------------------------|
+| `mongo`  | `mongo:7`            | (internal)| Named volume for persistence     |
+| `server` | `./server`           | 5001→5000 | Waits for mongo healthcheck      |
+| `client` | `./client`           | 80→80     | Nginx serving built React app    |
 
 ### Environment Variables
 
-| Variable            | Service  | Description                    |
-|---------------------|----------|--------------------------------|
-| `MONGODB_URI`       | server   | MongoDB connection string      |
-| `JWT_SECRET`        | server   | Secret for signing JWTs        |
-| `VITE_API_URL`      | client   | API base URL for the frontend  |
+| Variable      | Service | Default              | Description              |
+|---------------|---------|----------------------|--------------------------|
+| `MONGODB_URI` | server  | `mongodb://mongo:27017/networth` | MongoDB connection |
+| `JWT_SECRET`  | server  | `dev-secret-change-me` | **Change before deploying** |
 
 ---
 
-## GitHub Actions
+## CI/CD (GitHub Actions)
 
 - **Trigger:** Push to `main`
-- **Steps:**
-  1. Build client Docker image
-  2. Build server Docker image
-  3. Push both to GitHub Container Registry (ghcr.io)
-  4. Tag with `latest` and git SHA
-
----
-
-## Project Structure
-
-```
-networth-tracker/
-├── client/                  # React + Vite frontend
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Page components
-│   │   ├── hooks/           # Custom hooks
-│   │   ├── utils/           # Projection math, helpers
-│   │   ├── api/             # API client
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── package.json
-│   └── vite.config.js
-├── server/                  # Express + Mongoose backend
-│   ├── src/
-│   │   ├── models/          # Mongoose schemas
-│   │   ├── routes/          # Express routes
-│   │   ├── middleware/      # Auth middleware
-│   │   └── index.js         # Entry point
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── .github/
-│   └── workflows/
-│       └── build.yml
-├── SPEC.md
-└── README.md
-```
+- **Steps:** Build client + server Docker images → push to `ghcr.io` tagged with `latest` and git SHA
 
 ---
 
 ## Out of Scope (for now)
 
-- Historical balance snapshots (manual or via Plaid)
-- Importing transactions from banks
+- Importing transactions from banks / Plaid integration
 - Multiple currencies
 - Budgeting or expense tracking
 - Mobile app

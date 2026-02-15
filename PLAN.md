@@ -70,13 +70,27 @@ Users can bulk-add accounts by downloading a template CSV, filling it in, and up
 
 ---
 
+## 7. Client-side Encryption
+All account data is encrypted in the browser before being sent to the server, using a key derived from the user's password. The server stores only ciphertext — a DB breach exposes nothing readable.
+
+- Key derivation: PBKDF2 (300k iterations, SHA-256) → AES-GCM-256 key; per-user salt generated at registration and stored on server
+- Each account saved as `{ iv, data }` (base64 AES-GCM ciphertext of JSON fields)
+- Key stored in `sessionStorage` (survives refresh, cleared on tab close); user re-authenticates on new session to re-derive key
+- Export changed to client-side (decrypt in browser, download plaintext JSON); import encrypts each account before sending to server
+- Migration: existing plaintext accounts pass through as-is until re-saved
+
+**Files:** `server/src/models/User.js`, `server/src/models/Account.js`, `server/src/routes/auth.js`, `server/src/routes/accounts.js`, `server/src/routes/export.js`, `client/src/utils/crypto.js` (new), `client/src/context/AuthContext.jsx`, `client/src/api/accounts.js`, `client/src/pages/DashboardPage.jsx`
+
+---
+
 ## Status
 
 | # | Feature | Status |
 |---|---------|--------|
-| 1 | Type-aware account modal | pending |
+| 1 | Type-aware account modal | done |
 | 2 | Balance checkpoints | pending |
 | 3 | Actual vs projected lookback | pending |
 | 4 | Configurable inflation | done |
 | 5 | Data export / import | done |
 | 6 | CSV account import | pending |
+| 7 | Client-side encryption | pending |
