@@ -200,6 +200,7 @@ export default function DashboardPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         account={editAccount}
+        defaultCategory={defaultCategory}
         onSave={handleSave}
       />
     </div>

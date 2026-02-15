@@ -1,34 +1,78 @@
 import { useState, useEffect } from 'react';
 import { Dialog } from 'radix-ui';
 
-// Which extra fields each account type requires
+// Which extra fields each account type shows, and whether each is required
 const TYPE_CONFIG = {
-  investment:  { label: 'Investment',   category: 'asset', fields: ['expectedGrowthRate', 'monthlyContribution'] },
-  property:    { label: 'Property',     category: 'asset', fields: ['expectedGrowthRate'] },
-  vehicle:     { label: 'Vehicle',      category: 'asset', fields: ['expectedGrowthRate'] },
-  cash:        { label: 'Cash',         category: 'asset', fields: ['interestRate', 'monthlyContribution'] },
-  loan:        { label: 'Loan',         category: 'debt',  fields: ['interestRate', 'monthlyPayment', 'remainingTerm'] },
-  credit_card: { label: 'Credit Card',  category: 'debt',  fields: ['interestRate', 'monthlyPayment'] },
+  investment:  {
+    label: 'Investment',  category: 'asset', balanceLabel: 'Current Value ($)',
+    fields: [
+      { key: 'expectedGrowthRate',  required: true  },
+      { key: 'monthlyContribution', required: false },
+    ],
+  },
+  property: {
+    label: 'Property',    category: 'asset', balanceLabel: 'Current Value ($)',
+    fields: [
+      { key: 'expectedGrowthRate',  required: false },
+    ],
+  },
+  vehicle: {
+    label: 'Vehicle',     category: 'asset', balanceLabel: 'Current Value ($)',
+    defaults: { expectedGrowthRate: -15 },
+    fields: [
+      { key: 'expectedGrowthRate',  required: false },
+    ],
+  },
+  cash: {
+    label: 'Cash',        category: 'asset', balanceLabel: 'Balance ($)',
+    fields: [
+      { key: 'interestRate',        required: false },
+      { key: 'monthlyContribution', required: false },
+    ],
+  },
+  loan: {
+    label: 'Loan',        category: 'debt',  balanceLabel: 'Outstanding Balance ($)',
+    fields: [
+      { key: 'interestRate',   required: true  },
+      { key: 'monthlyPayment', required: true  },
+      { key: 'remainingTerm',  required: true  },
+    ],
+  },
+  credit_card: {
+    label: 'Credit Card', category: 'debt',  balanceLabel: 'Outstanding Balance ($)',
+    fields: [
+      { key: 'interestRate',   required: true },
+      { key: 'monthlyPayment', required: true },
+    ],
+  },
 };
 
 const FIELD_META = {
-  expectedGrowthRate:  { label: 'Expected Growth Rate (%/yr)',  placeholder: 'e.g. 7' },
-  monthlyContribution: { label: 'Monthly Contribution ($)',     placeholder: 'e.g. 500' },
-  interestRate:        { label: 'Interest Rate (%/yr)',         placeholder: 'e.g. 6.5' },
-  monthlyPayment:      { label: 'Monthly Payment ($)',          placeholder: 'e.g. 1800' },
-  remainingTerm:       { label: 'Remaining Term (months)',      placeholder: 'e.g. 300' },
+  expectedGrowthRate:  { label: 'Expected Annual Growth (%)', placeholder: 'e.g. 7'    },
+  monthlyContribution: { label: 'Monthly Contribution ($)',   placeholder: 'e.g. 500'  },
+  interestRate:        { label: 'Annual Interest Rate (%)',   placeholder: 'e.g. 6.5'  },
+  monthlyPayment:      { label: 'Monthly Payment ($)',        placeholder: 'e.g. 1800' },
+  remainingTerm:       { label: 'Remaining Term (months)',    placeholder: 'e.g. 300'  },
 };
 
 const ASSET_TYPES = Object.entries(TYPE_CONFIG).filter(([, v]) => v.category === 'asset');
 const DEBT_TYPES  = Object.entries(TYPE_CONFIG).filter(([, v]) => v.category === 'debt');
 
-function emptyForm(account = null) {
+function typeDefaults(type) {
+  return Object.fromEntries(
+    Object.entries(TYPE_CONFIG[type]?.defaults ?? {}).map(([k, v]) => [k, String(v)])
+  );
+}
+
+function emptyForm(account = null, defaultCategory = 'asset') {
+  const category = account?.category ?? defaultCategory;
+  const type     = account?.type     ?? (category === 'asset' ? 'investment' : 'loan');
   return {
     name:                account?.name                ?? '',
-    category:            account?.category            ?? 'asset',
-    type:                account?.type                ?? 'investment',
+    category,
+    type,
     balance:             account?.balance             ?? '',
-    expectedGrowthRate:  account?.expectedGrowthRate  ?? '',
+    expectedGrowthRate:  account?.expectedGrowthRate  != null ? String(account.expectedGrowthRate) : (typeDefaults(type).expectedGrowthRate ?? ''),
     monthlyContribution: account?.monthlyContribution ?? '',
     interestRate:        account?.interestRate         ?? '',
     monthlyPayment:      account?.monthlyPayment       ?? '',
@@ -36,11 +80,12 @@ function emptyForm(account = null) {
   };
 }
 
-function Field({ label, id, ...props }) {
+function Field({ label, hint, id, ...props }) {
   return (
     <div>
       <label htmlFor={id} className="block text-xs text-gh-muted mb-1.5 uppercase tracking-wide">
         {label}
+        {hint && <span className="normal-case ml-1.5 text-gh-muted/60">({hint})</span>}
       </label>
       <input
         id={id}
@@ -51,32 +96,39 @@ function Field({ label, id, ...props }) {
   );
 }
 
-export default function AccountModal({ open, onOpenChange, account, onSave }) {
+export default function AccountModal({ open, onOpenChange, account, defaultCategory = 'asset', onSave }) {
   const isEdit = Boolean(account);
-  const [form, setForm] = useState(() => emptyForm(account));
+  const [form, setForm] = useState(() => emptyForm(account, defaultCategory));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Reset form when the modal opens or the account changes
   useEffect(() => {
     if (open) {
-      setForm(emptyForm(account));
+      setForm(emptyForm(account, defaultCategory));
       setError('');
     }
-  }, [open, account]);
+  }, [open, account, defaultCategory]);
 
   function set(key, value) {
     setForm(prev => {
       const next = { ...prev, [key]: value };
-      // When category changes, reset type to first option of that category
       if (key === 'category') {
+        // Reset type to first option of that category
         next.type = value === 'asset' ? 'investment' : 'loan';
+        // Apply defaults for the new type
+        Object.assign(next, typeDefaults(next.type));
+      }
+      if (key === 'type') {
+        // Apply defaults for the newly selected type
+        Object.assign(next, typeDefaults(value));
       }
       return next;
     });
   }
 
   const extraFields = TYPE_CONFIG[form.type]?.fields ?? [];
+  const balanceLabel = TYPE_CONFIG[form.type]?.balanceLabel ?? 'Balance ($)';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -89,9 +141,9 @@ export default function AccountModal({ open, onOpenChange, account, onSave }) {
         type:     form.type,
         balance:  parseFloat(form.balance),
       };
-      for (const field of extraFields) {
-        const val = form[field];
-        if (val !== '' && val !== undefined) payload[field] = parseFloat(val);
+      for (const { key } of extraFields) {
+        const val = form[key];
+        if (val !== '' && val !== undefined) payload[key] = parseFloat(val);
       }
       await onSave(payload);
       onOpenChange(false);
@@ -162,7 +214,7 @@ export default function AccountModal({ open, onOpenChange, account, onSave }) {
 
             <Field
               id="balance"
-              label="Balance ($)"
+              label={balanceLabel}
               type="number"
               min="0"
               step="0.01"
@@ -173,16 +225,18 @@ export default function AccountModal({ open, onOpenChange, account, onSave }) {
             />
 
             {/* Dynamic type-specific fields */}
-            {extraFields.map(field => (
+            {extraFields.map(({ key, required }) => (
               <Field
-                key={field}
-                id={field}
-                label={FIELD_META[field].label}
+                key={key}
+                id={key}
+                label={FIELD_META[key].label}
+                hint={required ? null : 'optional'}
                 type="number"
                 step="0.01"
-                value={form[field]}
-                onChange={e => set(field, e.target.value)}
-                placeholder={FIELD_META[field].placeholder}
+                value={form[key]}
+                onChange={e => set(key, e.target.value)}
+                required={required}
+                placeholder={FIELD_META[key].placeholder}
               />
             ))}
 

@@ -2,6 +2,21 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const Account = require('../models/Account');
 
+const REQUIRED_BY_TYPE = {
+  investment:  ['expectedGrowthRate'],
+  loan:        ['interestRate', 'monthlyPayment', 'remainingTerm'],
+  credit_card: ['interestRate', 'monthlyPayment'],
+};
+
+function validateTypeFields(type, body) {
+  const required = REQUIRED_BY_TYPE[type] ?? [];
+  const missing = required.filter(f => body[f] === undefined || body[f] === null || body[f] === '');
+  if (missing.length) {
+    return `${type} requires: ${missing.join(', ')}`;
+  }
+  return null;
+}
+
 // All routes require auth
 router.use(auth);
 
@@ -24,6 +39,9 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'name, category, type, and balance are required' });
   }
 
+  const typeErr = validateTypeFields(type, req.body);
+  if (typeErr) return res.status(400).json({ error: typeErr });
+
   try {
     const account = await Account.create({
       userId: req.userId,
@@ -44,6 +62,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { name, category, type, balance, interestRate, expectedGrowthRate,
           monthlyContribution, monthlyPayment, remainingTerm } = req.body;
+
+  if (type) {
+    const typeErr = validateTypeFields(type, req.body);
+    if (typeErr) return res.status(400).json({ error: typeErr });
+  }
+
   try {
     const account = await Account.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
