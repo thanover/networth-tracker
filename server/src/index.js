@@ -8,7 +8,7 @@ mongoose
   .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/networth')
   .then(() => {
     console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
+    app.listen(PORT, '::', () => {
       console.log(`Server running on port ${PORT}`);
     });
   })
