@@ -3,6 +3,8 @@ name: Build and publish Docker images
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -36,7 +38,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./client
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ${{ env.IMAGE_PREFIX }}/client:latest
             ${{ env.IMAGE_PREFIX }}/client:${{ github.sha }}
@@ -47,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./server
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ${{ env.IMAGE_PREFIX }}/server:latest
             ${{ env.IMAGE_PREFIX }}/server:${{ github.sha }}
