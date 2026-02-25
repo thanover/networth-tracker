@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+watchPatterns = ["server/**"]
 
 [deploy]
 startCommand = "node src/index.js"
@@ -8,3 +9,8 @@ healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+# PR preview environments get the same config by default.
+# Override specific settings here if needed, e.g.:
+# [environments.pr.deploy]
+# startCommand = "node src/index.js"
