@@ -9,8 +9,19 @@ async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  const data = await res.json();
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new Error('Unable to reach the server. Please check your connection and try again.');
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('The server is temporarily unavailable. Please try again in a moment.');
+  }
 
   if (!res.ok) {
     throw new Error(data.error || `Request failed with status ${res.status}`);
@@ -27,13 +38,19 @@ export const api = {
 
   download: async (path, filename) => {
     const token = getToken();
-    const res = await fetch(`${BASE}${path}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    let res;
+    try {
+      res = await fetch(`${BASE}${path}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      throw new Error('Unable to reach the server. Please check your connection and try again.');
+    }
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || `Request failed with status ${res.status}`);
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      throw new Error(data.error || 'The server is temporarily unavailable. Please try again in a moment.');
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

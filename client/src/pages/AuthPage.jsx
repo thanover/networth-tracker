@@ -30,9 +30,11 @@ export default function AuthPage() {
     }
   }
 
-  function toggleMode() {
-    setMode(m => (m === 'login' ? 'register' : 'login'));
-    setError('');
+  function switchMode(newMode) {
+    if (newMode !== mode) {
+      setMode(newMode);
+      setError('');
+    }
   }
 
   return (
@@ -41,14 +43,37 @@ export default function AuthPage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-xl font-bold text-gh-bright mb-1">Net Worth Tracker</h1>
-          <p className="text-gh-muted text-xs">
-            {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
-          </p>
         </div>
 
         {/* Card */}
-        <div className="rounded-lg border border-gh-border bg-gh-surface p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-lg border border-gh-border bg-gh-surface overflow-hidden">
+          {/* Tab switcher */}
+          <div className="flex border-b border-gh-border">
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                mode === 'login'
+                  ? 'text-gh-text border-b-2 border-gh-blue bg-gh-raised'
+                  : 'text-gh-muted hover:text-gh-text'
+              }`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('register')}
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                mode === 'register'
+                  ? 'text-gh-text border-b-2 border-gh-blue bg-gh-raised'
+                  : 'text-gh-muted hover:text-gh-text'
+              }`}
+            >
+              Create account
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-xs text-gh-muted mb-1.5 uppercase tracking-wide">
                 Username
@@ -75,10 +100,22 @@ export default function AuthPage() {
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 className="w-full rounded-md border border-gh-border bg-gh-raised px-3 py-2 text-gh-text text-sm outline-none focus:border-gh-blue focus:ring-1 focus:ring-gh-blue"
               />
+              {mode === 'register' && (
+                <p className="mt-1.5 text-xs text-gh-muted">Must be at least 6 characters.</p>
+              )}
             </div>
 
             {error && (
-              <p className="text-gh-red text-xs">{error}</p>
+              <div className="flex items-start gap-2.5 rounded-md border border-gh-red/40 bg-gh-red/10 px-3 py-2.5">
+                <svg
+                  className="mt-0.5 h-4 w-4 shrink-0 text-gh-red"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1Zm0 1.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 7.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                </svg>
+                <p className="text-gh-red text-sm leading-snug">{error}</p>
+              </div>
             )}
 
             <button
@@ -92,17 +129,6 @@ export default function AuthPage() {
             </button>
           </form>
         </div>
-
-        {/* Toggle */}
-        <p className="mt-4 text-center text-xs text-gh-muted">
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            onClick={toggleMode}
-            className="text-gh-blue hover:underline"
-          >
-            {mode === 'login' ? 'Register' : 'Sign in'}
-          </button>
-        </p>
       </div>
     </div>
   );
