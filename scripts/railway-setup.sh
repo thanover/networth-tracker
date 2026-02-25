@@ -57,7 +57,8 @@ railway variable set \
   --service server \
   --environment production \
   "JWT_SECRET=${JWT_SECRET}" \
-  "NODE_ENV=production"
+  "NODE_ENV=production" \
+  "PORT=5000"
 
 echo ""
 echo "Step 6/7: Configuring client variables..."
