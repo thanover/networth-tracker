@@ -26,19 +26,19 @@ fi
 
 if ! railway whoami --json &> /dev/null 2>&1; then
   echo "Not logged in to Railway. Opening login..."
-  railway login
+  railway login --browserless
 fi
 
 # ── Create project ───────────────────────────────────────
 
 echo "Step 1/7: Creating Railway project..."
-railway init
+railway init --name networth-tracker
 
 # ── Add services ─────────────────────────────────────────
 
 echo ""
 echo "Step 2/7: Adding MongoDB service..."
-railway add mongodb
+railway add --database mongo
 
 echo ""
 echo "Step 3/7: Adding server service..."
@@ -53,17 +53,19 @@ railway add --service client
 echo ""
 echo "Step 5/7: Configuring server variables..."
 JWT_SECRET=$(openssl rand -hex 32)
-railway variables set \
+railway variable set \
+  --service server \
+  --environment production \
   "JWT_SECRET=${JWT_SECRET}" \
-  "NODE_ENV=production" \
-  --service server
+  "NODE_ENV=production"
 
 echo ""
 echo "Step 6/7: Configuring client variables..."
-railway variables set \
+railway variable set \
+  --service client \
+  --environment production \
   "SERVER_HOST=server.railway.internal" \
-  "SERVER_PORT=5000" \
-  --service client
+  "SERVER_PORT=5000"
 
 # ── Generate public domain ───────────────────────────────
 
