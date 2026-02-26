@@ -22,6 +22,10 @@ services:
     environment:
       MONGODB_URI: mongodb://mongo:27017/networth
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      # Uncomment to seed a demo user with sample accounts on first startup:
+      # SEED_DEMO_DATA: "true"
+      # SEED_DEMO_USERNAME: demo
+      # SEED_DEMO_PASSWORD: demo1234
 
   client:
     image: ghcr.io/thanover/networth-tracker/client:latest
