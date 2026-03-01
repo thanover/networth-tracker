@@ -14,3 +14,8 @@ restartPolicyMaxRetries = 3
 # Production has no SEED_DEMO_DATA variable set, so it never seeds.
 [environments.pr.variables]
 SEED_DEMO_DATA = "true"
+
+# PR environments get more restart attempts so a transient MongoDB startup
+# delay can't permanently kill the preview.
+[environments.pr.deploy]
+restartPolicyMaxRetries = 10
