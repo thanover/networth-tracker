@@ -4,9 +4,7 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["server/**"]
 
 [deploy]
-# Pin to 8080 so the client nginx can target a known port. The inline
-# assignment overrides Railway's injected PORT for the node process.
-startCommand = "PORT=8080 node src/index.js"
+startCommand = "node src/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
