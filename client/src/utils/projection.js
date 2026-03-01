@@ -2,7 +2,7 @@
  * Step a single account balance forward by one month.
  * Returns the new balance (never below 0).
  */
-function stepAccount(account, balance, month) {
+export function stepAccount(account, balance, month) {
   const { type, interestRate, expectedGrowthRate, monthlyContribution, monthlyPayment, remainingTerm } = account;
 
   switch (type) {

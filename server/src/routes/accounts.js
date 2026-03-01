@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const Account = require('../models/Account');
+const AccountEvent = require('../models/AccountEvent');
 
 const REQUIRED_BY_TYPE = {
   investment:  ['expectedGrowthRate'],
@@ -49,6 +50,16 @@ router.post('/', async (req, res) => {
       interestRate, expectedGrowthRate,
       monthlyContribution, monthlyPayment, remainingTerm,
     });
+
+    // Auto-create the account_opened event
+    await AccountEvent.create({
+      accountId: account._id,
+      userId: req.userId,
+      type: 'account_opened',
+      date: new Date(),
+      balance: account.balance,
+    });
+
     res.status(201).json(account);
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -90,6 +101,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const account = await Account.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!account) return res.status(404).json({ error: 'Account not found' });
+    await AccountEvent.deleteMany({ accountId: req.params.id });
     res.json({ message: 'Account deleted' });
   } catch {
     res.status(500).json({ error: 'Server error' });

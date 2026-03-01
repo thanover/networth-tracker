@@ -10,6 +10,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/accounts', require('./routes/accounts'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/export', require('./routes/export'));
+app.use('/api/events', require('./middleware/auth'), require('./routes/events'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

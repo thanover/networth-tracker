@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useEvents } from '@/hooks/useEvents';
 import AccountModal from '@/components/AccountModal';
 import AccountDetailModal from '@/components/AccountDetailModal';
 import NetWorthChart from '@/components/NetWorthChart';
@@ -113,6 +114,7 @@ function Section({ title, accounts, total, colorClass, onRowClick, onAdd, chart 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const { accounts, assets, debts, totalAssets, totalDebts, netWorth, loading, error, create, update, remove, reload } = useAccounts();
+  const { events, byAccount, createEvent, removeEvent, reload: reloadEvents } = useEvents();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editAccount, setEditAccount] = useState(null);
@@ -201,7 +203,7 @@ export default function DashboardPage() {
     setImportError('');
     try {
       const result = await api.post('/export', importPreview.raw);
-      await reload();
+      await Promise.all([reload(), reloadEvents()]);
       if (result.failures?.length) {
         const lines = result.failures.map(f => `• ${f.name}: ${f.reason}`).join('\n');
         setImportError(`Imported ${result.imported.accounts} account(s). Skipped ${result.failures.length}:\n${lines}`);
@@ -270,9 +272,10 @@ export default function DashboardPage() {
 
         {error && <p className="text-gh-red text-xs">{error}</p>}
 
-        {/* Projection chart */}
+        {/* Net worth chart (history + projection) */}
         <NetWorthChart
           accounts={accounts}
+          events={events}
           birthday={user.birthday}
           inflationRate={user.inflationRate}
           rangeIdx={rangeIdx}
@@ -290,7 +293,7 @@ export default function DashboardPage() {
             colorClass="text-gh-green"
             onRowClick={setDetailAccount}
             onAdd={() => openAdd('asset')}
-            chart={<AccountMiniChart accounts={assets} months={months} category="asset" real={real} inflationRate={user.inflationRate} />}
+            chart={<AccountMiniChart accounts={assets} events={events} months={months} category="asset" real={real} inflationRate={user.inflationRate} />}
           />
           <Section
             title="Debts"
@@ -299,7 +302,7 @@ export default function DashboardPage() {
             colorClass="text-gh-red"
             onRowClick={setDetailAccount}
             onAdd={() => openAdd('debt')}
-            chart={<AccountMiniChart accounts={debts} months={months} category="debt" real={real} inflationRate={user.inflationRate} />}
+            chart={<AccountMiniChart accounts={debts} events={events} months={months} category="debt" real={real} inflationRate={user.inflationRate} />}
           />
         </div>
       </main>
@@ -344,8 +347,11 @@ export default function DashboardPage() {
         open={Boolean(detailAccount)}
         onOpenChange={open => { if (!open) setDetailAccount(null); }}
         account={detailAccount}
+        events={detailAccount ? (byAccount[String(detailAccount._id)] ?? []) : []}
         onSave={handleDetailSave}
         onDelete={remove}
+        onCreateEvent={createEvent}
+        onDeleteEvent={removeEvent}
       />
     </div>
   );
