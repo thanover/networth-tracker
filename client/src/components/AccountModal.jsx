@@ -18,26 +18,16 @@ function Field({ label, hint, id, ...props }) {
   );
 }
 
-const TODAY = new Date().toISOString().slice(0, 10);
-
 export default function AccountModal({ open, onOpenChange, account, defaultCategory = 'asset', onSave }) {
   const isEdit = Boolean(account);
   const [form, setForm] = useState(() => emptyForm(account, defaultCategory));
-  const [openedAt, setOpenedAt] = useState(TODAY);
-  const [openingBalance, setOpeningBalance] = useState('');
-  const [currentBalance, setCurrentBalance] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const openedInPast = !isEdit && openedAt < TODAY;
 
   // Reset form when the modal opens or the account changes
   useEffect(() => {
     if (open) {
       setForm(emptyForm(account, defaultCategory));
-      setOpenedAt(TODAY);
-      setOpeningBalance('');
-      setCurrentBalance('');
       setError('');
     }
   }, [open, account, defaultCategory]);
@@ -71,17 +61,11 @@ export default function AccountModal({ open, onOpenChange, account, defaultCateg
         name:     form.name,
         category: form.category,
         type:     form.type,
-        balance:  isEdit
-          ? parseFloat(form.balance)
-          : parseFloat(openedInPast && currentBalance !== '' ? currentBalance : openingBalance || form.balance),
+        balance:  parseFloat(form.balance),
       };
       for (const { key } of extraFields) {
         const val = form[key];
         if (val !== '' && val !== undefined) payload[key] = parseFloat(val);
-      }
-      if (!isEdit) {
-        payload.openedAt = openedAt;
-        payload.openingBalance = parseFloat(openingBalance || form.balance);
       }
       await onSave(payload);
       onOpenChange(false);
@@ -150,61 +134,17 @@ export default function AccountModal({ open, onOpenChange, account, defaultCateg
               </select>
             </div>
 
-            {/* Opening date — add mode only */}
-            {!isEdit && (
-              <Field
-                id="openedAt"
-                label="Date opened"
-                type="date"
-                max={TODAY}
-                value={openedAt}
-                onChange={e => setOpenedAt(e.target.value)}
-                required
-              />
-            )}
-
-            {/* Balance fields */}
-            {isEdit ? (
-              <Field
-                id="balance"
-                label={balanceLabel}
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.balance}
-                onChange={e => set('balance', e.target.value)}
-                required
-                placeholder="e.g. 10000"
-              />
-            ) : (
-              <>
-                <Field
-                  id="openingBalance"
-                  label={openedInPast ? 'Opening balance ($)' : balanceLabel}
-                  hint={openedInPast ? `balance on ${openedAt}` : null}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={openingBalance}
-                  onChange={e => setOpeningBalance(e.target.value)}
-                  required
-                  placeholder="e.g. 10000"
-                />
-                {openedInPast && (
-                  <Field
-                    id="currentBalance"
-                    label="Current balance ($)"
-                    hint="optional — leave blank if unknown"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={currentBalance}
-                    onChange={e => setCurrentBalance(e.target.value)}
-                    placeholder="e.g. 12000"
-                  />
-                )}
-              </>
-            )}
+            <Field
+              id="balance"
+              label={balanceLabel}
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.balance}
+              onChange={e => set('balance', e.target.value)}
+              required
+              placeholder="e.g. 10000"
+            />
 
             {/* Dynamic type-specific fields */}
             {extraFields.map(({ key, required }) => (

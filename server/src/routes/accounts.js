@@ -34,8 +34,7 @@ router.get('/', async (req, res) => {
 // POST /api/accounts
 router.post('/', async (req, res) => {
   const { name, category, type, balance, interestRate, expectedGrowthRate,
-          monthlyContribution, monthlyPayment, remainingTerm,
-          openedAt, openingBalance } = req.body;
+          monthlyContribution, monthlyPayment, remainingTerm } = req.body;
 
   if (!name || !category || !type || balance === undefined) {
     return res.status(400).json({ error: 'name, category, type, and balance are required' });
@@ -52,13 +51,13 @@ router.post('/', async (req, res) => {
       monthlyContribution, monthlyPayment, remainingTerm,
     });
 
-    // Auto-create the account_opened event, using the provided date/balance if supplied
+    // Auto-create the account_opened event
     await AccountEvent.create({
       accountId: account._id,
       userId: req.userId,
       type: 'account_opened',
-      date: openedAt ? new Date(openedAt) : new Date(),
-      balance: openingBalance !== undefined ? openingBalance : account.balance,
+      date: new Date(),
+      balance: account.balance,
     });
 
     res.status(201).json(account);
