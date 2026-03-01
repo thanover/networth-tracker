@@ -3,6 +3,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 watchPatterns = ["server/**"]
 
+[variables]
+PORT = "5000"
+
 [deploy]
 startCommand = "node src/index.js"
 healthcheckPath = "/api/health"

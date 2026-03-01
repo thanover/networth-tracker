@@ -3,6 +3,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 watchPatterns = ["client/**"]
 
+[variables]
+SERVER_PORT = "${{server.PORT}}"
+
 [deploy]
 healthcheckPath = "/"
 healthcheckTimeout = 100
