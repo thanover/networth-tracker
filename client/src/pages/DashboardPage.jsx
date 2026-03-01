@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { DropdownMenu, Dialog } from 'radix-ui';
 import { useAuth } from '@/context/AuthContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useEvents } from '@/hooks/useEvents';
@@ -84,6 +85,170 @@ function AccountRow({ account, onClick }) {
   );
 }
 
+// ── Settings modal ─────────────────────────────────────────────────────────────
+function SettingsModal({ open, onOpenChange }) {
+  const { user, updateBirthday, updateInflationRate } = useAuth();
+  const [dobValue, setDobValue] = useState('');
+  const [rateValue, setRateValue] = useState('');
+  const [savingDob, setSavingDob] = useState(false);
+  const [savingRate, setSavingRate] = useState(false);
+
+  function handleOpen(isOpen) {
+    if (isOpen) {
+      setDobValue(user.birthday ? user.birthday.slice(0, 10) : '');
+      setRateValue(String(user.inflationRate ?? 3.5));
+    }
+    onOpenChange(isOpen);
+  }
+
+  async function handleSaveDob() {
+    setSavingDob(true);
+    try { await updateBirthday(dobValue || null); } finally { setSavingDob(false); }
+  }
+
+  async function handleSaveRate() {
+    const rate = parseFloat(rateValue);
+    if (isNaN(rate) || rate < 0) return;
+    setSavingRate(true);
+    try { await updateInflationRate(rate); } finally { setSavingRate(false); }
+  }
+
+  const rateChanged = parseFloat(rateValue) !== user.inflationRate;
+  const dobChanged  = (dobValue || null) !== (user.birthday ? user.birthday.slice(0, 10) : null);
+
+  return (
+    <Dialog.Root open={open} onOpenChange={handleOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-gh-border bg-gh-surface shadow-xl focus:outline-none">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gh-border">
+            <Dialog.Title className="text-sm font-bold text-gh-bright">Settings</Dialog.Title>
+            <Dialog.Close className="text-gh-muted hover:text-gh-text transition-colors">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.749.749 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.749.749 0 1 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/>
+              </svg>
+            </Dialog.Close>
+          </div>
+          <div className="px-6 py-5 space-y-5">
+            {/* Date of birth */}
+            <div>
+              <label className="block text-xs text-gh-muted uppercase tracking-wide mb-1.5">
+                Date of birth
+                <span className="normal-case ml-1.5 text-gh-muted/60">(used for age axis on chart)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={dobValue}
+                  onChange={e => setDobValue(e.target.value)}
+                  className="flex-1 rounded-md border border-gh-border bg-gh-raised px-3 py-2 text-sm text-gh-text outline-none focus:border-gh-blue"
+                />
+                {dobChanged && (
+                  <button
+                    onClick={handleSaveDob}
+                    disabled={savingDob}
+                    className="rounded-md bg-gh-blue px-3 py-2 text-xs text-white hover:bg-gh-blue/90 disabled:opacity-50 transition-colors"
+                  >
+                    {savingDob ? 'Saving…' : 'Save'}
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* Inflation rate */}
+            <div>
+              <label className="block text-xs text-gh-muted uppercase tracking-wide mb-1.5">
+                Inflation rate
+                <span className="normal-case ml-1.5 text-gh-muted/60">(% per year)</span>
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={rateValue}
+                  onChange={e => setRateValue(e.target.value)}
+                  className="w-24 rounded-md border border-gh-border bg-gh-raised px-3 py-2 text-sm text-gh-text outline-none focus:border-gh-blue"
+                />
+                <span className="text-xs text-gh-muted">%/yr</span>
+                {rateChanged && (
+                  <button
+                    onClick={handleSaveRate}
+                    disabled={savingRate}
+                    className="rounded-md bg-gh-blue px-3 py-2 text-xs text-white hover:bg-gh-blue/90 disabled:opacity-50 transition-colors"
+                  >
+                    {savingRate ? 'Saving…' : 'Save'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+// ── User menu dropdown ──────────────────────────────────────────────────────────
+const itemCls = 'flex items-center px-3 py-1.5 text-xs text-gh-text rounded cursor-pointer outline-none select-none data-[highlighted]:bg-gh-raised data-[highlighted]:text-gh-bright data-[disabled]:opacity-40 data-[disabled]:cursor-default';
+const subTriggerCls = `${itemCls} justify-between gap-4`;
+
+function UserMenu({ username, onExport, onImport, onSettings, onSignOut, exporting, reading }) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button className="flex items-center gap-1 text-xs text-gh-muted hover:text-gh-text transition-colors outline-none">
+          {username}
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="opacity-60">
+            <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z"/>
+          </svg>
+        </button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          className="z-50 min-w-[160px] rounded-lg border border-gh-border bg-gh-surface shadow-xl p-1 animate-in fade-in-0 zoom-in-95"
+        >
+          <DropdownMenu.Item className={itemCls} onSelect={onSettings}>
+            Settings
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-gh-border" />
+
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger className={subTriggerCls}>
+              Tools
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="opacity-60">
+                <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06z"/>
+              </svg>
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent
+                sideOffset={4}
+                className="z-50 min-w-[140px] rounded-lg border border-gh-border bg-gh-surface shadow-xl p-1 animate-in fade-in-0 zoom-in-95"
+              >
+                <DropdownMenu.Item className={itemCls} onSelect={onExport} disabled={exporting}>
+                  {exporting ? 'Exporting…' : 'Export'}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={itemCls} onSelect={onImport} disabled={reading}>
+                  {reading ? 'Reading…' : 'Import'}
+                </DropdownMenu.Item>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-gh-border" />
+
+          <DropdownMenu.Item className={`${itemCls} text-gh-red data-[highlighted]:text-gh-red`} onSelect={onSignOut}>
+            Sign out
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 function Section({ title, accounts, total, colorClass, onRowClick, onAdd, chart }) {
   return (
     <div className="rounded-lg border border-gh-border bg-gh-surface">
@@ -126,6 +291,8 @@ export default function DashboardPage() {
   // months for mini-charts, kept in sync with the net worth chart range
   const RANGE_MONTHS = [12, 60, 120, 480];
   const months = RANGE_MONTHS[rangeIdx];
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Export / Import state
   const fileInputRef = useRef(null);
@@ -223,27 +390,16 @@ export default function DashboardPage() {
       {/* Top bar */}
       <header className="border-b border-gh-border bg-gh-surface px-6 py-3 flex items-center justify-between">
         <span className="text-gh-bright font-bold text-sm">Net Worth Tracker</span>
-        <div className="flex items-center gap-4">
-          <span className="text-gh-muted text-xs">{user.username}</span>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="text-xs text-gh-muted hover:text-gh-text transition-colors disabled:opacity-50"
-          >
-            {exporting ? 'Exporting…' : 'Export'}
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={reading}
-            className="text-xs text-gh-muted hover:text-gh-text transition-colors disabled:opacity-50"
-          >
-            {reading ? 'Reading…' : 'Import'}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileSelect} />
-          <button onClick={logout} className="text-xs text-gh-muted hover:text-gh-text transition-colors">
-            Sign out
-          </button>
-        </div>
+        <UserMenu
+          username={user.username}
+          onExport={handleExport}
+          onImport={() => fileInputRef.current?.click()}
+          onSettings={() => setSettingsOpen(true)}
+          onSignOut={logout}
+          exporting={exporting}
+          reading={reading}
+        />
+        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileSelect} />
       </header>
 
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
@@ -334,6 +490,8 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       <AccountModal
         open={modalOpen}
