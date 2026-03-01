@@ -54,7 +54,12 @@ export function project(accounts, months) {
   for (let m = 0; m <= months; m++) {
     const totalAssets = assetBalances.reduce((s, b) => s + b, 0);
     const totalDebts  = debtBalances.reduce((s, b) => s + b, 0);
-    data.push({ month: m, assets: totalAssets, debts: totalDebts, netWorth: totalAssets - totalDebts });
+
+    const point = { month: m, assets: totalAssets, debts: totalDebts, netWorth: totalAssets - totalDebts };
+    // Per-account balances keyed by _id; debts are negated so they render below zero
+    assets.forEach((a, i) => { point[a._id] = assetBalances[i]; });
+    debts.forEach((a, i)  => { point[a._id] = -debtBalances[i]; });
+    data.push(point);
 
     if (m < months) {
       for (let i = 0; i < assets.length; i++) {
