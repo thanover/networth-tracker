@@ -10,7 +10,13 @@ healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
-# PR preview environments get the same config by default.
-# Override specific settings here if needed, e.g.:
-# [environments.pr.deploy]
-# startCommand = "node src/index.js"
+# Seed a demo user with sample accounts in PR preview environments only.
+# Production has no SEED_DEMO_DATA variable set, so it never seeds.
+[environments.pr.variables]
+SEED_DEMO_DATA = "true"
+
+# PR environments get more restart attempts so a transient MongoDB startup
+# delay can't permanently kill the preview.
+[environments.pr.deploy]
+startCommand = "env SEED_DEMO_DATA=true node src/index.js"
+restartPolicyMaxRetries = 10

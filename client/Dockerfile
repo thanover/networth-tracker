@@ -21,7 +21,7 @@ RUN chmod +x /docker-entrypoint-wrapper.sh
 
 ENV PORT=80
 ENV SERVER_HOST=server
-ENV SERVER_PORT=5000
+ENV SERVER_PORT=8080
 
 EXPOSE 80
 
