@@ -4,7 +4,8 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["client/**"]
 
 [variables]
-SERVER_PORT = "${{server.PORT}}"
+# Must match the PORT pinned in server/railway.toml startCommand.
+SERVER_PORT = "8080"
 
 [deploy]
 healthcheckPath = "/"
