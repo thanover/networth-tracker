@@ -18,4 +18,5 @@ SEED_DEMO_DATA = "true"
 # PR environments get more restart attempts so a transient MongoDB startup
 # delay can't permanently kill the preview.
 [environments.pr.deploy]
+startCommand = "SEED_DEMO_DATA=true node src/index.js"
 restartPolicyMaxRetries = 10
