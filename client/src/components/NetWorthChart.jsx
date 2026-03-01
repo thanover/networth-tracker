@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
-  Tooltip, Legend, CartesianGrid,
+  Tooltip, Legend, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import { project } from '@/utils/projection';
+import { buildHistory, computeHistoryMonths } from '@/utils/history';
 import { useAuth } from '@/context/AuthContext';
 
 const RANGES = [
@@ -20,7 +21,14 @@ function fmtCurrency(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 
+function calendarLabel(monthOffset) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthOffset);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
 function fmtMonth(month, months) {
+  if (month < 0) return calendarLabel(month);
   if (months <= 12) return `Mo ${month}`;
   const yr = month / 12;
   return Number.isInteger(yr) ? `Yr ${yr}` : '';
@@ -58,13 +66,19 @@ function CustomTooltip({ active, payload, label, months, birthday, real }) {
   if (birthday) {
     const { age, year } = ageAtMonth(birthday, label);
     title = `Age ${age} (${year})`;
+  } else if (label < 0) {
+    title = calendarLabel(label);
   } else {
     const yr = (label / 12).toFixed(1);
     title = months <= 12 ? `Month ${label}` : `Year ${yr}`;
   }
+  const isHistorical = label < 0;
   return (
     <div className="rounded-md border border-gh-border bg-gh-surface px-3 py-2 text-xs shadow-lg">
-      <p className="text-gh-muted mb-1">{title}{real ? ' · real' : ''}</p>
+      <p className="text-gh-muted mb-1">
+        {title}{real && !isHistorical ? ' · real' : ''}
+        {isHistorical ? ' · actual' : ''}
+      </p>
       {payload.map(p => (
         <p key={p.dataKey} style={{ color: p.color }}>
           {p.name}: {fmtCurrency(p.value)}
@@ -76,15 +90,18 @@ function CustomTooltip({ active, payload, label, months, birthday, real }) {
 
 function applyInflation(data, inflationRate) {
   const r = inflationRate / 100 / 12;
-  return data.map(d => ({
-    ...d,
-    assets:   d.assets   / Math.pow(1 + r, d.month),
-    debts:    d.debts    / Math.pow(1 + r, d.month),
-    netWorth: d.netWorth / Math.pow(1 + r, d.month),
-  }));
+  return data.map(d => {
+    if (d.month < 0) return d; // keep historical values in nominal terms
+    return {
+      ...d,
+      assets:   d.assets   / Math.pow(1 + r, d.month),
+      debts:    d.debts    / Math.pow(1 + r, d.month),
+      netWorth: d.netWorth / Math.pow(1 + r, d.month),
+    };
+  });
 }
 
-export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5, rangeIdx: rangeIdxProp, onRangeChange, real: realProp, onRealChange }) {
+export default function NetWorthChart({ accounts, events = [], birthday, inflationRate = 3.5, rangeIdx: rangeIdxProp, onRangeChange, real: realProp, onRealChange }) {
   const { updateBirthday, updateInflationRate } = useAuth();
   const [rangeIdxInternal, setRangeIdxInternal] = useState(1);
   const [realInternal, setRealInternal] = useState(false);
@@ -111,13 +128,22 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5,
   const currentAge = birthday ? ageAtMonth(birthday, 0).age : null;
   const rateChanged = parseFloat(rateInput) !== inflationRate;
 
+  const historyMonths = useMemo(() => computeHistoryMonths(events), [events]);
+
   const data = useMemo(() => {
     if (!accounts.length) return [];
-    const raw = project(accounts, months);
-    const step = months <= 60 ? 1 : months <= 120 ? 3 : 6;
-    const thinned = raw.filter((_, i) => i % step === 0);
+
+    const histData  = buildHistory(accounts, events, historyMonths);
+    const futureRaw = project(accounts, months);
+    // Avoid duplicate month=0
+    const combined  = [...histData.slice(0, -1), ...futureRaw];
+
+    const totalMonths = historyMonths + months;
+    const step = totalMonths <= 60 ? 1 : totalMonths <= 120 ? 3 : 6;
+    const thinned = combined.filter((_, i) => i % step === 0 || combined[i].month === 0);
+
     return real ? applyInflation(thinned, inflationRate) : thinned;
-  }, [accounts, months, real, inflationRate]);
+  }, [accounts, events, months, historyMonths, real, inflationRate]);
 
   async function handleDobSave() {
     if (!dobValue) return;
@@ -141,8 +167,13 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5,
     }
   }
 
+  // Build ticks spanning history + future
   const tickInterval = months <= 12 ? 3 : months <= 60 ? 12 : months <= 120 ? 24 : 96;
-  const ticks = Array.from({ length: Math.floor(months / tickInterval) }, (_, i) => (i + 1) * tickInterval);
+  const histTicks = historyMonths > 0
+    ? Array.from({ length: Math.floor(historyMonths / tickInterval) }, (_, i) => -historyMonths + (i + 1) * tickInterval)
+    : [];
+  const futureTicks = Array.from({ length: Math.floor(months / tickInterval) }, (_, i) => (i + 1) * tickInterval);
+  const ticks = [...histTicks, 0, ...futureTicks];
 
   const xAxisProps = birthday
     ? { ticks, tick: (props) => <AgeTick {...props} birthday={birthday} />, height: 40 }
@@ -152,9 +183,9 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5,
 
   return (
     <div className="rounded-lg border border-gh-border bg-gh-surface">
-      {/* Header — title + range buttons only */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gh-border">
-        <span className="text-xs uppercase tracking-widest text-gh-muted font-medium">Projected Net Worth</span>
+        <span className="text-xs uppercase tracking-widest text-gh-muted font-medium">Net Worth</span>
         <div className="flex gap-1">
           {RANGES.map((r, i) => (
             <button
@@ -179,6 +210,9 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5,
             <YAxis tickFormatter={fmtCurrency} tick={{ fill: '#8b949e', fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
             <Tooltip content={<CustomTooltip months={months} birthday={birthday} real={real} />} />
             <Legend wrapperStyle={{ fontSize: 11, color: '#8b949e', paddingTop: 8 }} iconType="plainline" />
+            {historyMonths > 0 && (
+              <ReferenceLine x={0} stroke="#484f58" strokeDasharray="4 2" label={{ value: 'Today', position: 'top', fill: '#8b949e', fontSize: 10 }} />
+            )}
             <Line type="monotone" dataKey="assets"   name="Assets"    stroke="#3fb950" dot={false} strokeWidth={1.5} />
             <Line type="monotone" dataKey="debts"    name="Debts"     stroke="#f85149" dot={false} strokeWidth={1.5} />
             <Line type="monotone" dataKey="netWorth" name="Net Worth" stroke="#388bfd" dot={false} strokeWidth={2} />

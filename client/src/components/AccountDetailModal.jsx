@@ -5,6 +5,15 @@ import { TYPE_CONFIG, FIELD_META, ASSET_TYPES, DEBT_TYPES, typeDefaults, emptyFo
 const fmt = n =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
+const fmtDate = iso =>
+  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+const EVENT_LABELS = {
+  account_opened:  'Opened',
+  balance_update:  'Balance updated',
+  account_closed:  'Closed',
+};
+
 // ── Read-only field row ────────────────────────────────────────────────────────
 function DetailRow({ label, value }) {
   return (
@@ -32,8 +41,197 @@ function Field({ label, hint, id, ...props }) {
   );
 }
 
+// ── History section ────────────────────────────────────────────────────────────
+function HistorySection({ account, events, onCreateEvent, onDeleteEvent }) {
+  const [addingBalance, setAddingBalance] = useState(false);
+  const [addingClose, setAddingClose]     = useState(false);
+  const [balDate, setBalDate]     = useState('');
+  const [balAmount, setBalAmount] = useState('');
+  const [closeDate, setCloseDate] = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(null);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isClosed = events.some(e => e.type === 'account_closed');
+
+  async function handleAddBalance(e) {
+    e.preventDefault();
+    if (!balDate || !balAmount) return;
+    setSaving(true);
+    try {
+      await onCreateEvent({
+        accountId: account._id,
+        type: 'balance_update',
+        date: balDate,
+        balance: parseFloat(balAmount),
+      });
+      setBalDate('');
+      setBalAmount('');
+      setAddingBalance(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleClose(e) {
+    e.preventDefault();
+    if (!closeDate) return;
+    setSaving(true);
+    try {
+      await onCreateEvent({
+        accountId: account._id,
+        type: 'account_closed',
+        date: closeDate,
+      });
+      setCloseDate('');
+      setAddingClose(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(eventId) {
+    setDeleting(eventId);
+    try {
+      await onDeleteEvent(eventId);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gh-border">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs uppercase tracking-wide text-gh-muted font-medium">History</span>
+        <div className="flex gap-2">
+          {!isClosed && (
+            <>
+              <button
+                onClick={() => { setAddingBalance(v => !v); setAddingClose(false); }}
+                className="text-xs text-gh-blue hover:underline"
+              >
+                Record balance
+              </button>
+              <button
+                onClick={() => { setAddingClose(v => !v); setAddingBalance(false); }}
+                className="text-xs text-gh-muted hover:text-gh-red transition-colors"
+              >
+                Close account
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Add balance form */}
+      {addingBalance && (
+        <form onSubmit={handleAddBalance} className="flex gap-2 mb-3 items-end">
+          <div className="flex-1">
+            <label className="block text-xs text-gh-muted mb-1">Date</label>
+            <input
+              type="date"
+              value={balDate}
+              max={today}
+              onChange={e => setBalDate(e.target.value)}
+              required
+              className="w-full rounded border border-gh-border bg-gh-raised px-2 py-1.5 text-xs text-gh-text outline-none focus:border-gh-blue"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-gh-muted mb-1">Balance ($)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={balAmount}
+              onChange={e => setBalAmount(e.target.value)}
+              placeholder="0.00"
+              required
+              className="w-full rounded border border-gh-border bg-gh-raised px-2 py-1.5 text-xs text-gh-text outline-none focus:border-gh-blue"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded bg-gh-blue px-3 py-1.5 text-xs text-white hover:bg-gh-blue/90 disabled:opacity-50"
+          >
+            {saving ? '…' : 'Save'}
+          </button>
+          <button type="button" onClick={() => setAddingBalance(false)} className="text-xs text-gh-muted hover:text-gh-text">
+            Cancel
+          </button>
+        </form>
+      )}
+
+      {/* Close account form */}
+      {addingClose && (
+        <form onSubmit={handleClose} className="flex gap-2 mb-3 items-end">
+          <div className="flex-1">
+            <label className="block text-xs text-gh-muted mb-1">Closing date</label>
+            <input
+              type="date"
+              value={closeDate}
+              max={today}
+              onChange={e => setCloseDate(e.target.value)}
+              required
+              className="w-full rounded border border-gh-border bg-gh-raised px-2 py-1.5 text-xs text-gh-text outline-none focus:border-gh-blue"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded bg-gh-red px-3 py-1.5 text-xs text-white hover:bg-gh-red/90 disabled:opacity-50"
+          >
+            {saving ? '…' : 'Close'}
+          </button>
+          <button type="button" onClick={() => setAddingClose(false)} className="text-xs text-gh-muted hover:text-gh-text">
+            Cancel
+          </button>
+        </form>
+      )}
+
+      {/* Event list */}
+      {events.length === 0 ? (
+        <p className="text-xs text-gh-muted py-1">No history recorded.</p>
+      ) : (
+        <ul className="space-y-1">
+          {events.map(ev => (
+            <li key={ev._id} className="flex items-center justify-between text-xs py-1 border-b border-gh-border/30 last:border-0">
+              <div className="flex items-center gap-2">
+                <span className="text-gh-muted w-24 shrink-0">{fmtDate(ev.date)}</span>
+                <span className={`${ev.type === 'account_closed' ? 'text-gh-red' : ev.type === 'account_opened' ? 'text-gh-green' : 'text-gh-text'}`}>
+                  {EVENT_LABELS[ev.type]}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                {ev.balance != null && (
+                  <span className={`tabular-nums font-medium ${account.category === 'asset' ? 'text-gh-green' : 'text-gh-red'}`}>
+                    {fmt(ev.balance)}
+                  </span>
+                )}
+                <button
+                  onClick={() => handleDelete(ev._id)}
+                  disabled={deleting === ev._id}
+                  className="text-gh-muted hover:text-gh-red transition-colors disabled:opacity-50"
+                  title="Delete event"
+                >
+                  {deleting === ev._id ? '…' : (
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.749.749 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.749.749 0 1 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function AccountDetailModal({ open, onOpenChange, account, onSave, onDelete }) {
+export default function AccountDetailModal({ open, onOpenChange, account, events = [], onSave, onDelete, onCreateEvent, onDeleteEvent }) {
   // 'view' | 'edit' | 'delete'
   const [mode, setMode] = useState('view');
   const [form, setForm] = useState(() => emptyForm(account));
@@ -110,10 +308,10 @@ export default function AccountDetailModal({ open, onOpenChange, account, onSave
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-gh-border bg-gh-surface shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-gh-border bg-gh-surface shadow-xl focus:outline-none max-h-[90vh] overflow-y-auto">
 
           {/* Header */}
-          <div className="flex items-start justify-between px-6 py-4 border-b border-gh-border">
+          <div className="flex items-start justify-between px-6 py-4 border-b border-gh-border sticky top-0 bg-gh-surface z-10">
             <div>
               <Dialog.Title className="text-base font-bold text-gh-bright leading-tight">
                 {account.name}
@@ -134,17 +332,28 @@ export default function AccountDetailModal({ open, onOpenChange, account, onSave
 
             {/* ── VIEW mode ── */}
             {mode === 'view' && (
-              <div className="space-y-0">
-                <DetailRow
-                  label={cfg?.balanceLabel?.replace(' ($)', '') ?? 'Balance'}
-                  value={<span className={account.category === 'asset' ? 'text-gh-green' : 'text-gh-red'}>{fmt(account.balance)}</span>}
-                />
-                {cfg?.fields.map(({ key }) =>
-                  account[key] != null ? (
-                    <DetailRow key={key} label={FIELD_META[key].label} value={formatFieldValue(key, account[key])} />
-                  ) : null
+              <>
+                <div className="space-y-0">
+                  <DetailRow
+                    label={cfg?.balanceLabel?.replace(' ($)', '') ?? 'Balance'}
+                    value={<span className={account.category === 'asset' ? 'text-gh-green' : 'text-gh-red'}>{fmt(account.balance)}</span>}
+                  />
+                  {cfg?.fields.map(({ key }) =>
+                    account[key] != null ? (
+                      <DetailRow key={key} label={FIELD_META[key].label} value={formatFieldValue(key, account[key])} />
+                    ) : null
+                  )}
+                </div>
+
+                {onCreateEvent && onDeleteEvent && (
+                  <HistorySection
+                    account={account}
+                    events={events}
+                    onCreateEvent={onCreateEvent}
+                    onDeleteEvent={onDeleteEvent}
+                  />
                 )}
-              </div>
+              </>
             )}
 
             {/* ── EDIT mode ── */}
@@ -235,7 +444,7 @@ export default function AccountDetailModal({ open, onOpenChange, account, onSave
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gh-border flex items-center justify-between">
+          <div className="px-6 py-4 border-t border-gh-border flex items-center justify-between sticky bottom-0 bg-gh-surface">
 
             {mode === 'view' && (
               <>
