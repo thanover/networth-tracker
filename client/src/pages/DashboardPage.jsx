@@ -120,6 +120,7 @@ export default function DashboardPage() {
 
   const [detailAccount, setDetailAccount] = useState(null);
   const [rangeIdx, setRangeIdx] = useState(1);
+  const [real, setReal] = useState(false);
   // months for mini-charts, kept in sync with the net worth chart range
   const RANGE_MONTHS = [12, 60, 120, 480];
   const months = RANGE_MONTHS[rangeIdx];
@@ -276,6 +277,8 @@ export default function DashboardPage() {
           inflationRate={user.inflationRate}
           rangeIdx={rangeIdx}
           onRangeChange={setRangeIdx}
+          real={real}
+          onRealChange={setReal}
         />
 
         {/* Assets + Debts side by side */}
@@ -287,7 +290,7 @@ export default function DashboardPage() {
             colorClass="text-gh-green"
             onRowClick={setDetailAccount}
             onAdd={() => openAdd('asset')}
-            chart={<AccountMiniChart accounts={assets} months={months} category="asset" />}
+            chart={<AccountMiniChart accounts={assets} months={months} category="asset" real={real} inflationRate={user.inflationRate} />}
           />
           <Section
             title="Debts"
@@ -296,7 +299,7 @@ export default function DashboardPage() {
             colorClass="text-gh-red"
             onRowClick={setDetailAccount}
             onAdd={() => openAdd('debt')}
-            chart={<AccountMiniChart accounts={debts} months={months} category="debt" />}
+            chart={<AccountMiniChart accounts={debts} months={months} category="debt" real={real} inflationRate={user.inflationRate} />}
           />
         </div>
       </main>

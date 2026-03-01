@@ -42,15 +42,28 @@ function MiniTooltip({ active, payload, label, months }) {
   );
 }
 
-export default function AccountMiniChart({ accounts, months, category }) {
+function applyInflation(data, accounts, inflationRate) {
+  const r = inflationRate / 100 / 12;
+  return data.map(d => {
+    const deflator = Math.pow(1 + r, d.month);
+    const deflated = { ...d };
+    accounts.forEach(a => {
+      if (d[a._id] !== undefined) deflated[a._id] = d[a._id] / deflator;
+    });
+    return deflated;
+  });
+}
+
+export default function AccountMiniChart({ accounts, months, category, real = false, inflationRate = 3.5 }) {
   const colors = category === 'asset' ? ASSET_COLORS : DEBT_COLORS;
 
   const data = useMemo(() => {
     if (!accounts.length) return [];
     const raw = projectByAccount(accounts, months);
     const step = months <= 60 ? 1 : months <= 120 ? 3 : 6;
-    return raw.filter((_, i) => i % step === 0);
-  }, [accounts, months]);
+    const thinned = raw.filter((_, i) => i % step === 0);
+    return real ? applyInflation(thinned, accounts, inflationRate) : thinned;
+  }, [accounts, months, real, inflationRate]);
 
   if (!accounts.length) return null;
 

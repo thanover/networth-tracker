@@ -84,10 +84,10 @@ function applyInflation(data, inflationRate) {
   }));
 }
 
-export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5, rangeIdx: rangeIdxProp, onRangeChange }) {
+export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5, rangeIdx: rangeIdxProp, onRangeChange, real: realProp, onRealChange }) {
   const { updateBirthday, updateInflationRate } = useAuth();
   const [rangeIdxInternal, setRangeIdxInternal] = useState(1);
-  const [real, setReal] = useState(false);
+  const [realInternal, setRealInternal] = useState(false);
   const [editingDob, setEditingDob] = useState(false);
   const [dobValue, setDobValue] = useState('');
   const [rateInput, setRateInput] = useState(String(inflationRate));
@@ -98,6 +98,12 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5,
   function setRangeIdx(i) {
     setRangeIdxInternal(i);
     onRangeChange?.(i);
+  }
+
+  const real = realProp ?? realInternal;
+  function setReal(v) {
+    setRealInternal(v);
+    onRealChange?.(v);
   }
 
   const { months } = RANGES[rangeIdx];
