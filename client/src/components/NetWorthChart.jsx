@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   Tooltip, Legend, CartesianGrid,
 } from 'recharts';
 import { project } from '@/utils/projection';
@@ -12,11 +12,6 @@ const RANGES = [
   { label: '10Y', months: 120 },
   { label: '40Y', months: 480 },
 ];
-
-// Green shades for asset accounts (light → dark)
-const ASSET_COLORS = ['#85e89d', '#56d364', '#3fb950', '#2ea043', '#238636', '#1a7f37', '#196c2e', '#144620'];
-// Red shades for debt accounts (light → dark)
-const DEBT_COLORS  = ['#ffa198', '#ff7b72', '#f85149', '#da3633', '#b62324', '#8e1519', '#67060c', '#490202'];
 
 function fmtCurrency(n) {
   const abs = Math.abs(n);
@@ -57,9 +52,8 @@ function AgeTick({ x, y, payload, birthday }) {
   );
 }
 
-function CustomTooltip({ active, payload, label, months, birthday, real, assetAccounts, debtAccounts }) {
+function CustomTooltip({ active, payload, label, months, birthday, real }) {
   if (!active || !payload?.length) return null;
-
   let title;
   if (birthday) {
     const { age, year } = ageAtMonth(birthday, label);
@@ -68,98 +62,56 @@ function CustomTooltip({ active, payload, label, months, birthday, real, assetAc
     const yr = (label / 12).toFixed(1);
     title = months <= 12 ? `Month ${label}` : `Year ${yr}`;
   }
-
-  const byKey = Object.fromEntries(payload.map(p => [p.dataKey, p]));
-
-  const totalAssets = assetAccounts.reduce((s, a) => s + (byKey[a._id]?.value ?? 0), 0);
-  const totalDebts  = debtAccounts.reduce((s, a)  => s - (byKey[a._id]?.value ?? 0), 0);
-  const netWorthEntry = byKey['netWorth'];
-
   return (
     <div className="rounded-md border border-gh-border bg-gh-surface px-3 py-2 text-xs shadow-lg">
       <p className="text-gh-muted mb-1">{title}{real ? ' · real' : ''}</p>
-
-      {assetAccounts.length > 0 && (
-        <>
-          <p className="text-gh-muted mt-1 mb-0.5 font-semibold">Assets {fmtCurrency(totalAssets)}</p>
-          {assetAccounts.map(a => {
-            const entry = byKey[a._id];
-            if (!entry) return null;
-            return (
-              <p key={a._id} style={{ color: entry.color }} className="pl-2">
-                {a.name}: {fmtCurrency(entry.value)}
-              </p>
-            );
-          })}
-        </>
-      )}
-
-      {debtAccounts.length > 0 && (
-        <>
-          <p className="text-gh-muted mt-1 mb-0.5 font-semibold">Debts {fmtCurrency(totalDebts)}</p>
-          {debtAccounts.map(a => {
-            const entry = byKey[a._id];
-            if (!entry) return null;
-            return (
-              <p key={a._id} style={{ color: entry.color }} className="pl-2">
-                {a.name}: {fmtCurrency(Math.abs(entry.value))}
-              </p>
-            );
-          })}
-        </>
-      )}
-
-      {netWorthEntry && (
-        <p style={{ color: netWorthEntry.color }} className="mt-1 font-semibold">
-          Net Worth: {fmtCurrency(netWorthEntry.value)}
+      {payload.map(p => (
+        <p key={p.dataKey} style={{ color: p.color }}>
+          {p.name}: {fmtCurrency(p.value)}
         </p>
-      )}
+      ))}
     </div>
   );
 }
 
-function applyInflation(data, inflationRate, accountIds) {
+function applyInflation(data, inflationRate) {
   const r = inflationRate / 100 / 12;
-  return data.map(d => {
-    const deflator = Math.pow(1 + r, d.month);
-    const deflated = {
-      ...d,
-      assets:   d.assets   / deflator,
-      debts:    d.debts    / deflator,
-      netWorth: d.netWorth / deflator,
-    };
-    accountIds.forEach(id => {
-      if (d[id] !== undefined) deflated[id] = d[id] / deflator;
-    });
-    return deflated;
-  });
+  return data.map(d => ({
+    ...d,
+    assets:   d.assets   / Math.pow(1 + r, d.month),
+    debts:    d.debts    / Math.pow(1 + r, d.month),
+    netWorth: d.netWorth / Math.pow(1 + r, d.month),
+  }));
 }
 
-export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5 }) {
+export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5, rangeIdx: rangeIdxProp, onRangeChange }) {
   const { updateBirthday, updateInflationRate } = useAuth();
-  const [rangeIdx, setRangeIdx] = useState(1);
+  const [rangeIdxInternal, setRangeIdxInternal] = useState(1);
   const [real, setReal] = useState(false);
   const [editingDob, setEditingDob] = useState(false);
   const [dobValue, setDobValue] = useState('');
   const [rateInput, setRateInput] = useState(String(inflationRate));
   const [savingDob, setSavingDob] = useState(false);
   const [savingRate, setSavingRate] = useState(false);
+
+  const rangeIdx = rangeIdxProp ?? rangeIdxInternal;
+  function setRangeIdx(i) {
+    setRangeIdxInternal(i);
+    onRangeChange?.(i);
+  }
+
   const { months } = RANGES[rangeIdx];
 
   const currentAge = birthday ? ageAtMonth(birthday, 0).age : null;
   const rateChanged = parseFloat(rateInput) !== inflationRate;
-
-  const assetAccounts = useMemo(() => accounts.filter(a => a.category === 'asset'), [accounts]);
-  const debtAccounts  = useMemo(() => accounts.filter(a => a.category === 'debt'),  [accounts]);
-  const accountIds    = useMemo(() => accounts.map(a => a._id), [accounts]);
 
   const data = useMemo(() => {
     if (!accounts.length) return [];
     const raw = project(accounts, months);
     const step = months <= 60 ? 1 : months <= 120 ? 3 : 6;
     const thinned = raw.filter((_, i) => i % step === 0);
-    return real ? applyInflation(thinned, inflationRate, accountIds) : thinned;
-  }, [accounts, months, real, inflationRate, accountIds]);
+    return real ? applyInflation(thinned, inflationRate) : thinned;
+  }, [accounts, months, real, inflationRate]);
 
   async function handleDobSave() {
     if (!dobValue) return;
@@ -215,58 +167,16 @@ export default function NetWorthChart({ accounts, birthday, inflationRate = 3.5 
       {/* Chart */}
       <div className="px-2 py-4" style={{ height: birthday ? 300 : 280 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+          <LineChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
             <XAxis dataKey="month" axisLine={{ stroke: '#30363d' }} tickLine={false} {...xAxisProps} />
             <YAxis tickFormatter={fmtCurrency} tick={{ fill: '#8b949e', fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
-            <Tooltip
-              content={
-                <CustomTooltip
-                  months={months}
-                  birthday={birthday}
-                  real={real}
-                  assetAccounts={assetAccounts}
-                  debtAccounts={debtAccounts}
-                />
-              }
-            />
-            <Legend wrapperStyle={{ fontSize: 11, color: '#8b949e', paddingTop: 8 }} iconType="rect" />
-
-            {/* Asset accounts — stacked green areas */}
-            {assetAccounts.map((account, i) => (
-              <Area
-                key={account._id}
-                type="monotone"
-                dataKey={account._id}
-                name={account.name}
-                stackId="assets"
-                stroke={ASSET_COLORS[i % ASSET_COLORS.length]}
-                fill={ASSET_COLORS[i % ASSET_COLORS.length]}
-                fillOpacity={0.5}
-                dot={false}
-                strokeWidth={1}
-              />
-            ))}
-
-            {/* Debt accounts — stacked red areas (negative values go below zero) */}
-            {debtAccounts.map((account, i) => (
-              <Area
-                key={account._id}
-                type="monotone"
-                dataKey={account._id}
-                name={account.name}
-                stackId="debts"
-                stroke={DEBT_COLORS[i % DEBT_COLORS.length]}
-                fill={DEBT_COLORS[i % DEBT_COLORS.length]}
-                fillOpacity={0.5}
-                dot={false}
-                strokeWidth={1}
-              />
-            ))}
-
-            {/* Net worth line */}
+            <Tooltip content={<CustomTooltip months={months} birthday={birthday} real={real} />} />
+            <Legend wrapperStyle={{ fontSize: 11, color: '#8b949e', paddingTop: 8 }} iconType="plainline" />
+            <Line type="monotone" dataKey="assets"   name="Assets"    stroke="#3fb950" dot={false} strokeWidth={1.5} />
+            <Line type="monotone" dataKey="debts"    name="Debts"     stroke="#f85149" dot={false} strokeWidth={1.5} />
             <Line type="monotone" dataKey="netWorth" name="Net Worth" stroke="#388bfd" dot={false} strokeWidth={2} />
-          </ComposedChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
 
