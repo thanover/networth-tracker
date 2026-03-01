@@ -4,6 +4,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import AccountModal from '@/components/AccountModal';
 import AccountDetailModal from '@/components/AccountDetailModal';
 import NetWorthChart from '@/components/NetWorthChart';
+import AccountMiniChart from '@/components/AccountMiniChart';
 import BirthdayBanner from '@/components/BirthdayBanner';
 import { api } from '@/api/client';
 
@@ -82,13 +83,14 @@ function AccountRow({ account, onClick }) {
   );
 }
 
-function Section({ title, accounts, total, colorClass, onRowClick, onAdd }) {
+function Section({ title, accounts, total, colorClass, onRowClick, onAdd, chart }) {
   return (
     <div className="rounded-lg border border-gh-border bg-gh-surface">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gh-border">
         <span className="text-xs uppercase tracking-widest text-gh-muted font-medium">{title}</span>
         <button onClick={onAdd} className="text-xs text-gh-blue hover:underline">+ Add</button>
       </div>
+      {chart}
       <div className="px-4 overflow-hidden">
         {accounts.length === 0 ? (
           <p className="py-4 text-xs text-gh-muted">No {title.toLowerCase()} added yet.</p>
@@ -117,6 +119,11 @@ export default function DashboardPage() {
   const [defaultCategory, setDefaultCategory] = useState('asset');
 
   const [detailAccount, setDetailAccount] = useState(null);
+  const [rangeIdx, setRangeIdx] = useState(1);
+  const [real, setReal] = useState(false);
+  // months for mini-charts, kept in sync with the net worth chart range
+  const RANGE_MONTHS = [12, 60, 120, 480];
+  const months = RANGE_MONTHS[rangeIdx];
 
   // Export / Import state
   const fileInputRef = useRef(null);
@@ -237,7 +244,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
+      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
         {/* Birthday banner */}
         {!user.birthday && <BirthdayBanner />}
 
@@ -264,27 +271,37 @@ export default function DashboardPage() {
         {error && <p className="text-gh-red text-xs">{error}</p>}
 
         {/* Projection chart */}
-        <NetWorthChart accounts={accounts} birthday={user.birthday} inflationRate={user.inflationRate} />
-
-        {/* Assets */}
-        <Section
-          title="Assets"
-          accounts={assets}
-          total={totalAssets}
-          colorClass="text-gh-green"
-          onRowClick={setDetailAccount}
-          onAdd={() => openAdd('asset')}
+        <NetWorthChart
+          accounts={accounts}
+          birthday={user.birthday}
+          inflationRate={user.inflationRate}
+          rangeIdx={rangeIdx}
+          onRangeChange={setRangeIdx}
+          real={real}
+          onRealChange={setReal}
         />
 
-        {/* Debts */}
-        <Section
-          title="Debts"
-          accounts={debts}
-          total={totalDebts}
-          colorClass="text-gh-red"
-          onRowClick={setDetailAccount}
-          onAdd={() => openAdd('debt')}
-        />
+        {/* Assets + Debts side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Section
+            title="Assets"
+            accounts={assets}
+            total={totalAssets}
+            colorClass="text-gh-green"
+            onRowClick={setDetailAccount}
+            onAdd={() => openAdd('asset')}
+            chart={<AccountMiniChart accounts={assets} months={months} category="asset" real={real} inflationRate={user.inflationRate} />}
+          />
+          <Section
+            title="Debts"
+            accounts={debts}
+            total={totalDebts}
+            colorClass="text-gh-red"
+            onRowClick={setDetailAccount}
+            onAdd={() => openAdd('debt')}
+            chart={<AccountMiniChart accounts={debts} months={months} category="debt" real={real} inflationRate={user.inflationRate} />}
+          />
+        </div>
       </main>
 
       {/* Import confirmation overlay */}

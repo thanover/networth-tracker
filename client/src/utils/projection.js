@@ -68,3 +68,27 @@ export function project(accounts, months) {
 
   return data;
 }
+
+/**
+ * Build monthly projection data broken down by individual account.
+ * Returns an array of { month, [account._id]: balance, ... } objects.
+ * Balances are always positive (raw). Accounts can be a filtered subset.
+ */
+export function projectByAccount(accounts, months) {
+  const balances = accounts.map(a => a.balance);
+  const data = [];
+
+  for (let m = 0; m <= months; m++) {
+    const point = { month: m };
+    accounts.forEach((a, i) => { point[a._id] = balances[i]; });
+    data.push(point);
+
+    if (m < months) {
+      for (let i = 0; i < accounts.length; i++) {
+        balances[i] = stepAccount(accounts[i], balances[i], m);
+      }
+    }
+  }
+
+  return data;
+}
