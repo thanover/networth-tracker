@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
       const latestEvent = await AccountEvent.findOne({
         accountId,
         type: { $in: ['account_opened', 'balance_update'] },
-      }).sort({ date: -1 });
+      }).sort({ date: -1, _id: -1 });
 
       if (latestEvent && latestEvent._id.equals(event._id)) {
         await Account.findByIdAndUpdate(accountId, { balance });
